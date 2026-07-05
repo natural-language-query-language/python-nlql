@@ -43,6 +43,11 @@ jobs:
         run: pip install -r requirements-docs.txt
       - name: Build site (strict)
         run: python -m mkdocs build --strict
+      - name: Enable Pages (Actions mode)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh api -X POST /repos/$GITHUB_REPOSITORY/pages -f build_type=workflow 2>&1 | tail -3 || true
       - name: Setup Pages
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: actions/configure-pages@v5
