@@ -57,10 +57,12 @@ class Engine:
         normalizer: Normalizer | None = None,
         cache: EmbeddingCache | None = None,
         field_types: dict[str, TypeTag] | None = None,
+        type_handlers: dict | None = None,
         reranker: Reranker | None = None,
         rerank_factor: int = 5,
         named_embedders: dict[str, Embedder] | None = None,
     ) -> None:
+        self._type_handlers: dict = type_handlers or {}
         self._registry = registry if registry is not None else GLOBAL_REGISTRY.child()
         self._embedder: Embedder = (
             embedder if isinstance(embedder, CachedEmbedder) else CachedEmbedder(embedder, cache)
@@ -83,6 +85,7 @@ class Engine:
             self._embedder,
             granularity=granularity,
             field_types=field_types,
+            type_handlers=self._type_handlers,
             reranker=reranker,
             rerank_factor=rerank_factor,
             named_embedders=self._named_embedders,
@@ -268,6 +271,13 @@ class Engine:
     ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         """Register/override a splitter for this engine only."""
         return self._registry.splitter(name, overwrite=overwrite)
+
+    def register_type(self, name: str, handler: Any = None) -> Any:
+        """Register a custom type at the instance level (shadows global).
+        Supports both direct call and ``@register_type`` decorator mode."""
+        from nlql.types.core import register_type as _register
+
+        return _register(name, handler, registry=self._type_handlers)
 
     # -- LLM integration -------------------------------------------------------
     def function_schema(self) -> dict[str, Any]:

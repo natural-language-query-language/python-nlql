@@ -37,6 +37,7 @@ class Executor:
         *,
         granularity: str = "sentence",
         field_types: dict[str, TypeTag] | None = None,
+        type_handlers: dict | None = None,
         reranker: Reranker | None = None,
         rerank_factor: int = 5,
         named_embedders: dict[str, Embedder] | None = None,
@@ -50,7 +51,7 @@ class Executor:
         self._rerank_factor = max(1, rerank_factor)
         self._named_embedders = named_embedders or {}
         self._planner = Planner(registry)
-        self._evaluator = Evaluator(registry, self._field_types)
+        self._evaluator = Evaluator(registry, self._field_types, type_handlers)
 
     _OVERFETCH = 10
 

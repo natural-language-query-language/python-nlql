@@ -23,9 +23,10 @@ from nlql.types.core import TypeTag
 class Evaluator:
     """Evaluates IR expressions against a single unit and a set of LET bindings."""
 
-    def __init__(self, registry: Registry, field_types: dict[str, TypeTag] | None = None) -> None:
+    def __init__(self, registry: Registry, field_types: dict[str, TypeTag] | None = None, type_handlers: dict | None = None) -> None:
         self._registry = registry
         self._field_types = field_types or {}
+        self._type_handlers = type_handlers or {}
 
     def eval(self, expr: Expr, unit: Unit, bindings: dict[str, Expr]) -> Any:
         if isinstance(expr, Literal):
@@ -81,14 +82,26 @@ class Evaluator:
     def _eval_compare(self, node: Compare, unit: Unit, bindings: dict[str, Expr]) -> bool:
         left = self.eval(node.left, unit, bindings)
         right = self.eval(node.right, unit, bindings)
-        hint = self._field_hint(node.left) or self._field_hint(node.right)
-        return compare_values(node.op, left, right, hint)
+        hint = self._hint_for(node.left, node.right)
+        return compare_values(node.op, left, right, hint, type_handlers=self._type_handlers)
 
     def _field_hint(self, node: Expr) -> TypeTag | None:
         """The declared type of a metadata path, if any (drives typed comparison)."""
         if isinstance(node, Path) and node.root != "content":
             segments = node.segments if node.root == "meta" else [node.root, *node.segments]
             return self._field_types.get(".".join(segments))
+        return None
+
+    def _hint_for(self, left_node: Expr, right_node: Expr) -> Any:
+        """Resolve comparison hint: field_types declaration first, then explicit
+        Literal type_hint (e.g. ``DATE '2024-01-01'`` → hint='date')."""
+        hint = self._field_hint(left_node) or self._field_hint(right_node)
+        if hint:
+            return hint
+        if isinstance(right_node, Literal) and right_node.type_hint:
+            return right_node.type_hint
+        if isinstance(left_node, Literal) and left_node.type_hint:
+            return left_node.type_hint
         return None
 
     @staticmethod

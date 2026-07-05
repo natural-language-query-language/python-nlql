@@ -85,6 +85,8 @@ def _is_pushable_subtree(expr: Expr, caps: StoreCaps, field_types: dict[str, Any
             return False  # a declared-typed field is evaluated in-memory with its type hint
         if literal.value is None:
             return False  # null comparisons have SQL-specific semantics — keep in-memory
+        if literal.type_hint is not None:
+            return False  # typed literal (DATE '...', EMAIL '...') → in-memory for type-aware comparison
         if expr.op in ("==", "!="):
             return True
         # Ordered comparisons push only for numeric literals — stores can range numbers,

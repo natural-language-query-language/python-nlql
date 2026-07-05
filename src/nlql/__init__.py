@@ -49,7 +49,7 @@ from nlql.sdk import (
     select,
     similarity,
 )
-from nlql.types import Signature, TypeTag
+from nlql.types import Signature, TypeTag, TypeHandler, register_type, get_type_handler
 
 __version__ = "0.2.0"
 
@@ -84,6 +84,9 @@ __all__ = [
     # types
     "Signature",
     "TypeTag",
+    "TypeHandler",
+    "register_type",
+    "get_type_handler",
     # errors
     "NLQLError",
     "NLQLParseError",

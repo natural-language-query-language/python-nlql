@@ -2,7 +2,6 @@
 
 Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen3.7-max, gpt-5.5, minimax-m3` (averaged) · via `https://ai.su.ki/v1`.
 
-
 ## Fairness & scope
 
 - **Same embedding** (`text-embedding-3-small`) and **same answer LLM** for both pipelines — only the retriever differs.

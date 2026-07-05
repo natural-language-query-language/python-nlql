@@ -11,7 +11,7 @@ from datetime import date, datetime
 from typing import Any
 
 from nlql.errors import NLQLTypeError
-from nlql.types.core import TypeTag
+from nlql.types.core import TypeTag, get_type_handler
 
 
 def as_number(x: Any) -> float | None:
@@ -61,25 +61,32 @@ def coerce_operands(a: Any, b: Any) -> tuple[Any, Any]:
     return a, b
 
 
-def _coerce_with_hint(left: Any, right: Any, hint: TypeTag | None) -> tuple[Any, Any]:
-    """Coerce a comparison pair, honoring a declared field type when given.
+def _coerce_with_hint(left: Any, right: Any, hint: Any, type_handlers: dict | None = None) -> tuple[Any, Any]:
+    """Coerce a comparison pair, honoring a declared field type or literal type hint.
 
-    ``TEXT`` forces a string comparison (so e.g. a zip code ``"02134"`` is never treated as
-    the number 2134); ``NUMBER`` / ``DATE`` force that coercion; otherwise fall back to
-    value-based inference.
+    ``TEXT`` forces string comparison; ``NUMBER`` / ``DATE`` force that coercion;
+    ``TIMESTAMP`` uses date logic; custom registered types use their TypeHandler.parse;
+    otherwise fall back to value-based inference.
     """
-    if hint is TypeTag.TEXT:
+    hu = hint.upper() if isinstance(hint, str) else None
+    if hint is TypeTag.TEXT or hu == "TEXT":
         return str(left), str(right)
-    if hint is TypeTag.NUMBER:
+    if hint is TypeTag.NUMBER or hu == "NUMBER":
         ln, rn = as_number(left), as_number(right)
         return (ln, rn) if ln is not None and rn is not None else (left, right)
-    if hint is TypeTag.DATE:
+    if hint is TypeTag.DATE or hu in ("DATE", "TIMESTAMP"):
         ld, rd = as_date(left), as_date(right)
         return (ld, rd) if ld is not None and rd is not None else (left, right)
+    # custom registered type
+    handler = get_type_handler(hint, type_handlers) if isinstance(hint, str) else None
+    if handler:
+        l = handler.parse(left) if isinstance(left, str) else left
+        r = handler.parse(right) if isinstance(right, str) else right
+        return l, r
     return coerce_operands(left, right)
 
 
-def compare_values(op: str, left: Any, right: Any, hint: TypeTag | None = None) -> bool:
+def compare_values(op: str, left: Any, right: Any, hint: TypeTag | None = None, *, type_handlers: dict | None = None) -> bool:
     """Apply a comparison with NLQL semantics.
 
     Coerces numbers/dates (or the declared ``hint`` type), treats a null operand as excluded
@@ -93,7 +100,11 @@ def compare_values(op: str, left: Any, right: Any, hint: TypeTag | None = None) 
         if op == "!=":
             return left is not right
         return False
-    lhs, rhs = _coerce_with_hint(left, right, hint)
+    lhs, rhs = _coerce_with_hint(left, right, hint, type_handlers)
+    # custom type compare override
+    handler = get_type_handler(hint, type_handlers) if isinstance(hint, str) else None
+    if handler and handler.compare is not None:
+        return handler.compare(lhs, rhs, op)
     if op == "==":
         return bool(lhs == rhs)
     if op == "!=":

@@ -13,6 +13,7 @@ from typing import Any
 from lark import Token, Transformer
 
 from nlql.errors import NLQLParseError
+from nlql.types.core import is_known_type_hint
 from nlql.ir.nodes import (
     And,
     Binding,
@@ -45,6 +46,14 @@ class NLQLTransformer(Transformer):
 
     def null_lit(self, _items: list[Token]) -> Literal:
         return Literal(None)
+
+    def typed_str_lit(self, items: list[Token]) -> Literal:
+        """SQL-style typed literal: ``DATE '2024-01-01'`` or ``EMAIL 'x@y.com'``.
+        The type name is stored as type_hint; validation happens at evaluation time
+        (so instance-level types registered after parsing still work)."""
+        prefix = str(items[0]).lower()
+        raw = str(items[1])
+        return Literal(raw[1:-1], type_hint=prefix)
 
     # -- references & calls ----------------------------------------------------
     def path(self, items: list[Token]) -> Path:

@@ -59,6 +59,7 @@ path: NAME ("." NAME)*
         | NUMBER   -> num_lit
         | BOOLEAN  -> bool_lit
         | NULL     -> null_lit
+        | NAME STRING -> typed_str_lit
 
 // -- Terminals -----------------------------------------------------------------
 COMPARE_OP: "==" | "!=" | "<=" | ">=" | "<" | ">"

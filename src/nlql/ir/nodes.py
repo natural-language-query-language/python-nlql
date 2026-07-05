@@ -36,19 +36,24 @@ LiteralValue = str | int | float | bool | None
 # --------------------------------------------------------------------------- #
 @dataclass
 class Literal:
-    """A constant scalar value."""
+    """A constant scalar value, optionally carrying an explicit type hint
+    (e.g. ``DATE '2024-01-01'`` → type_hint='date')."""
 
     value: LiteralValue
+    type_hint: str | None = None
     KIND: ClassVar[str] = "literal"
 
     def to_dict(self) -> dict[str, Any]:
-        return {"node": self.KIND, "value": self.value}
+        d: dict[str, Any] = {"node": self.KIND, "value": self.value}
+        if self.type_hint is not None:
+            d["type_hint"] = self.type_hint
+        return d
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> Literal:
         if "value" not in d:
             raise NLQLSchemaError("literal node requires 'value'")
-        return cls(value=d["value"])
+        return cls(value=d["value"], type_hint=d.get("type_hint"))
 
 
 @dataclass

@@ -86,6 +86,11 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "properties": {
                     "node": {"const": "literal"},
                     "value": {"type": ["string", "number", "boolean", "null"]},
+                    "type_hint": {
+                        "type": "string",
+                        "enum": ["date", "timestamp", "text", "number", "bool"],
+                        "description": "Optional type hint for SQL-style typed literals (since v0.3.2).",
+                    },
                 },
                 "required": ["node", "value"],
             },
