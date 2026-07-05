@@ -27,6 +27,18 @@ class NlqlRag:
     def __init__(self, granularity: str = "sentence") -> None:
         # SELECT <unit> must match the ingest granularity; store it for retrieve_semantic.
         self._unit = granularity.upper()
+        if granularity == "document":
+            # NLQL has no built-in document splitter; register an identity one so a
+            # whole document becomes a single unit (matches LangChain's passage store,
+            # avoids chunk-split embedding losing context on long docs).
+            from nlql.registry import GLOBAL_REGISTRY
+
+            GLOBAL_REGISTRY.register(
+                "splitter", "document",
+                lambda t: [t] if t.strip() else [],
+                doc="whole-document unit (identity, no split)",
+                overwrite=True,
+            )
         self._cache = EmbeddingCache()
         if os.path.exists(_CACHE_PATH):
             self._cache.load(_CACHE_PATH)
@@ -53,43 +65,53 @@ class NlqlRag:
 
     def retrieve_semantic(self, query: str, k: int = 10) -> list[str]:
         q = query.replace('"', " ").replace("\n", " ").strip()
+        # Over-fetch (3x) then deduplicate by doc_id: long documents get split into
+        # multiple chunks and would otherwise occupy several top-k slots with the
+        # same doc_id, starving the result of unique documents.
         nlql = (
             f'SELECT {self._unit} LET rel = SIMILARITY(content, "{q}") '
-            f"ORDER BY rel DESC LIMIT {k}"
+            f"ORDER BY rel DESC LIMIT {k * 3}"
         )
         units = self.engine.search(nlql)
-        return [u.doc_id for u in units[:k]]
+        seen: set[str] = set()
+        unique: list[str] = []
+        for u in units:
+            if u.doc_id not in seen:
+                seen.add(u.doc_id)
+                unique.append(u.doc_id)
+            if len(unique) >= k:
+                break
+        return unique
 
     def llm_retrieve(self, question_text: str, k: int = 3) -> list[tuple[str, str]]:
-        """LLM-driven retrieval: the model sees the IR JSON Schema (incl. select.unit
-        and window) and emits a Query IR by intent; search_ir executes it.
-
-        This is the fair, end-to-end path — no hand-written NLQL favoring NLQL.
+        """LLM-driven retrieval: the model writes an NLQL query string (SQL-like,
+        far shorter and more controllable than nested IR JSON) and the lark parser
+        executes it. Parse errors → empty result (counts as a miss).
         """
-        import json
-
         from ..llm import chat
 
-        schema = self.engine.function_schema()
         prompt = (
-            "Build an NLQL Query IR document to retrieve the answer to the question. "
-            "Reply with ONLY the IR JSON, no prose.\n\n"
-            f"JSON Schema: {json.dumps(schema)}\n\n"
-            "Notes:\n"
-            "- content = the text. For semantic relevance use a Call node: "
-            '{node:"call", name:"SIMILARITY", args:[{node:"path",root:"content"}, {node:"literal",value:"<query>"}]}\n'
-            "- meta.* fields available: status, date (YYYY-MM-DD), category, priority, done. "
-            'Reference them as {node:"path",root:"meta",segments:["status"]}.\n'
-            '- Use {node:"call",name:"CONTAINS",args:[<path>,<literal>]} for literal substrings.\n'
-            "- Comparison ops on WHERE: ==, !=, <, >, <=, >= (dates compare as strings, ISO order).\n"
-            '- select.unit is one of document / chunk / sentence; pick by intent '
-            "(whole doc vs passage vs specific sentence). Optional window = SPAN neighbor radius.\n"
+            "Write an NLQL query to retrieve the answer. Reply with ONLY the query.\n\n"
+            "NLQL syntax (SQL-like):\n"
+            "  SELECT SENTENCE|CHUNK|DOCUMENT [SPAN(UNIT, window => N)]\n"
+            "  LET name = SIMILARITY(content, \"semantic query\")\n"
+            "  WHERE <conditions>: meta.field == \"v\" | meta.date >= \"2024-01-01\" |\n"
+            "    content CONTAINS \"keyword\" | AND / OR / NOT | ==, !=, >=, <=\n"
+            "  ORDER BY name DESC\n"
+            "  LIMIT n\n\n"
+            "Functions: SIMILARITY(content, \"...\") = semantic relevance;\n"
+            "  CONTAINS = literal substring.\n"
+            "Metadata: status (published/draft), date (YYYY-MM-DD), category,\n"
+            "  priority (high/medium/low), done (true/false).\n\n"
+            "Examples:\n"
+            "  SELECT SENTENCE LET rel = SIMILARITY(content, \"AI agents\") WHERE meta.status == \"published\" ORDER BY rel DESC LIMIT 3\n"
+            "  SELECT SENTENCE WHERE content CONTAINS \"transformer\" LIMIT 5\n"
+            "  SELECT SENTENCE LET rel = SIMILARITY(content, \"RAG\") WHERE meta.status != \"draft\" ORDER BY rel DESC LIMIT 5\n\n"
             f"Question: {question_text}"
         )
         raw = chat(prompt).strip().strip("`")
         try:
-            ir = json.loads(raw)
-            units = self.engine.search_ir(ir, limit=k)
+            units = self.engine.search(raw)
         except Exception:
-            return []  # malformed IR or execution error -> counts as a miss
+            return []
         return [(u.doc_id, u.content) for u in units[:k]]

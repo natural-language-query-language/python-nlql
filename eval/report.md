@@ -18,7 +18,7 @@ Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen
 |---|---|---|---|
 | MS MARCO · 1609 docs / 100 q | NLQL | 100.0% | 0.591 |
 | MS MARCO · 1609 docs / 100 q | LangChain | 100.0% | 0.592 |
-| BEIR/scifact · 1100 docs / 100 q | NLQL | 94.5% | 0.847 |
+| BEIR/scifact · 1100 docs / 100 q | NLQL | 95.5% | 0.853 |
 | BEIR/scifact · 1100 docs / 100 q | LangChain | 95.5% | 0.853 |
 
 ## 2. Constructed capability scenarios (self-authored probe)
@@ -33,10 +33,10 @@ Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen
 | keyword | 3.33 | 100% | 100% | 3.33 | 100% | 56% |
 | composite | 5.00 | 100% | 100% | 5.00 | 100% | 89% |
 | vague | 3.67 | 70% | 100% | 3.11 | 57% | 78% |
-| negation | 3.00 | 58% | 100% | 1.33 | 25% | 89% |
+| negation | 3.00 | 58% | 100% | 1.11 | 25% | 89% |
 | distractor | 4.78 | 100% | 100% | 2.78 | 56% | 78% |
 | boolean | 4.11 | 92% | 89% | 3.33 | 69% | 67% |
-| **overall** | 4.31 | 91% | 99% | 3.74 | 79% | 80% |
+| **overall** | 4.31 | 91% | 99% | 3.72 | 79% | 80% |
 
 ## 3. Per-question (panel-averaged)
 
@@ -60,7 +60,7 @@ Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen
 | 16 | vague | What have I shipped recently? | 4.0 / 75% / 100% | 4.0 / 75% / 100% |
 | 17 | vague | What's coming up in 2025? | 3.0 / 60% / 100% | 1.7 / 20% / 33% |
 | 18 | vague | What's still pending on my plate? | 4.0 / 75% / 100% | 3.7 / 75% / 100% |
-| 19 | negation | List the published transformer docs (no drafts | 3.7 / 75% / 100% | 2.0 / 25% / 100% |
+| 19 | negation | List the published transformer docs (no drafts | 3.7 / 75% / 100% | 1.3 / 25% / 100% |
 | 20 | negation | Show me the published agent docs (not the draf | 2.3 / 50% / 100% | 0.0 / 0% / 67% |
 | 21 | negation | Which RAG docs are published (exclude drafts)? | 3.0 / 50% / 100% | 2.0 / 50% / 100% |
 | 22 | distractor | Published RAG docs from 2024 (there are draft  | 5.0 / 100% / 100% | 3.0 / 67% / 100% |
@@ -221,8 +221,8 @@ Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen
 - expected: `['tx-attention', 'tx-arch', 'tx-bert', 'llm-gpt']`
 - **NLQL** — score 3.7 (qwen3.7-max=4 gpt-5.5=4 minimax-m3=3), hit 75%, prec 100%, retrieved `['tx-arch', 'tx-attention', 'tx-bert']`
   - answer: - The transformer architecture stacks self-attention and feed-forward layers. - The attention mechanism lets a model weigh different tokens 
-- **LangChain** — score 2.0 (qwen3.7-max=2 gpt-5.5=2 minimax-m3=2), hit 25%, prec 100%, retrieved `['todo-i18n-docs', 'todo-rag-doc', 'tx-bert']`
-  - answer: BERT is an encoder-only transformer pretrained with masked language modeling.
+- **LangChain** — score 1.3 (qwen3.7-max=1 gpt-5.5=2 minimax-m3=1), hit 25%, prec 100%, retrieved `['todo-i18n-docs', 'tx-arch', 'todo-rag-doc']`
+  - answer: The transformer architecture stacks self-attention and feed-forward layers.
 
 ### Q20 (negation) — Show me the published agent docs (not the drafts).
 
@@ -288,3 +288,14 @@ Embedding `text-embedding-3-small` · answer `qwen3.7-plus` · judge panel `qwen
 - **LangChain** — score 4.3 (qwen3.7-max=5 gpt-5.5=5 minimax-m3=3), hit 75%, prec 67%, retrieved `['tx-arch', 'tx-attention', 'tx-bert']`
   - answer: All three documents are published and mention 'transformer' or 'attention':  - The transformer architecture stacks self-attention and feed-f
 
+
+## LLM-generated IR vs fixed IR
+
+NLQL's killer feature: an LLM sees the `function_tool()` JSON Schema and emits a complete Query IR (WHERE / OR / AND / CONTAINS / SPAN / limit) — far more expressive than LangChain's `{query, filter}`.
+
+| pipeline | mode | score | hit | prec |
+|---|---|---|---|---|
+| NLQL | fixed | 4.31 | 91% | 99% |
+| NLQL | LLM-gen | 3.72 | 80% | 79% |
+| LangChain | fixed | 3.72 | 79% | 80% |
+| LangChain | LLM-gen | 3.14 | 66% | 77% |

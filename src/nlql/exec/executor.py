@@ -202,17 +202,38 @@ class Executor:
     # -- granularity -----------------------------------------------------------
     def _materialize(self, units: list[Unit], plan: QueryPlan) -> list[Unit]:
         select = plan.query.select
-        if select.unit == self._granularity:
+        target = select.unit
+
+        # Same granularity: passthrough or SPAN.
+        if target == self._granularity:
             if select.window is None:
                 return units
             return [self._make_span(u, select.window) for u in units]
-        if select.unit == "document":
+
+        # Aggregate to document (works from any granularity).
+        if target == "document":
             if select.window is not None:
                 raise NLQLPlanError("SPAN(DOCUMENT) is not supported")
             return self._aggregate_documents(units)
+
+        # Coarse → fine: split into sentences at query time (chunk/document → sentence).
+        # Uses the registered SENTENCE splitter so users can override for their language.
+        if target == "sentence" and self._granularity in ("chunk", "document"):
+            sentences = self._split_to_sentences(units)
+            if select.window is not None:
+                sentences = [self._make_span(s, select.window) for s in sentences]
+            return sentences
+
+        # Fine → coarse: aggregate sentences into per-document chunks (sentence → chunk).
+        if target == "chunk" and self._granularity == "sentence":
+            if select.window is not None:
+                raise NLQLPlanError(
+                    "SPAN(CHUNK) from a sentence-indexed store is not supported"
+                )
+            return self._aggregate_to_chunks(units)
+
         raise NLQLPlanError(
-            f"store is indexed at '{self._granularity}' granularity; cannot SELECT "
-            f"'{select.unit}'. Use {self._granularity}, SPAN({self._granularity}), or document."
+            f"cannot SELECT '{target}' from a '{self._granularity}'-indexed store"
         )
 
     def _make_span(self, center: Unit, window: int) -> Unit:
@@ -260,6 +281,64 @@ class Executor:
                 )
             )
         return results
+
+    def _split_to_sentences(self, units: list[Unit]) -> list[Unit]:
+        """Split each unit's text into sentences at query time (coarse → fine).
+
+        Uses the SENTENCE splitter registered in the registry, so users can override
+        it for different languages (pysbd, spaCy, jieba …) via ``register_splitter``.
+        Sentence units inherit the parent's vector and scores — recall happened at
+        the coarser granularity; this is purely a presentation transform (O(k·s),
+        where k = result count and s = sentences per unit, both small).
+        """
+        cap = self._registry.get("splitter", "SENTENCE")
+        if cap is not None:
+            splitter = cap.impl
+        else:
+            from nlql.ingest.splitters import split_sentences as splitter
+
+        result: list[Unit] = []
+        for u in units:
+            for i, sent in enumerate(splitter(u.content)):
+                result.append(
+                    Unit(
+                        id=f"{u.doc_id}#sent:{u.ordinal}:{i}",
+                        doc_id=u.doc_id,
+                        kind="sentence",
+                        payload=Payload.text(sent),
+                        metadata=dict(u.metadata),
+                        vector=u.vector,
+                        scores=dict(u.scores),
+                        ordinal=u.ordinal + i,
+                    )
+                )
+        return result
+
+    def _aggregate_to_chunks(self, units: list[Unit]) -> list[Unit]:
+        """Aggregate sentence units into per-document chunks (fine → coarse).
+
+        All recalled sentences from the same document become one chunk; the
+        best-ranked unit's vector/score represents the chunk. O(n) in result count.
+        """
+        by_doc: dict[str, list[Unit]] = {}
+        for u in units:
+            by_doc.setdefault(u.doc_id, []).append(u)
+        result: list[Unit] = []
+        for doc_id, group in by_doc.items():
+            rep = group[0]  # units are score-ordered; first == best
+            result.append(
+                Unit(
+                    id=f"{doc_id}#chunk",
+                    doc_id=doc_id,
+                    kind="chunk",
+                    payload=Payload.text(" ".join(u.content for u in group)),
+                    metadata=dict(rep.metadata),
+                    vector=rep.vector,
+                    scores=dict(rep.scores),
+                    ordinal=0,
+                )
+            )
+        return result
 
     # -- presentation ----------------------------------------------------------
     def _surface_named_scores(self, results: list[Unit], plan: QueryPlan) -> None:

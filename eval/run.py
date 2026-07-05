@@ -133,11 +133,10 @@ def run_public_benchmark(name: str, load_fn) -> tuple[dict, int, int, list[dict]
     corpus, queries = load_fn()
     print(f"  {name}: {len(corpus)} passages, {len(queries)} judged queries")
 
-    # NLQL uses chunk granularity so each MS MARCO passage is one retrieval unit
-    # (CHUNK splitter merges up to 1000 chars → whole passage). This aligns with
-    # LangChain, which stores whole passages — otherwise NLQL would retrieve
-    # sentence fragments and lose recall to duplicate-doc_id slot occupation.
-    pipelines = [NlqlRag(granularity="chunk"), LangChainRag()]
+    # NLQL uses document granularity so each passage/doc is ONE retrieval unit (embedding
+    # covers the whole text, same as LangChain). Chunk splitting would embed partial text
+    # and lose recall on long documents (scifact abstracts average 1500+ chars).
+    pipelines = [NlqlRag(granularity="document"), LangChainRag()]
     t_ingest = time.time()
     for p in pipelines:
         p.ingest(corpus)
@@ -175,19 +174,19 @@ def run_public_benchmark(name: str, load_fn) -> tuple[dict, int, int, list[dict]
 # --- evaluation 2: constructed scenarios ---------------------------------------
 
 
-def run_scenarios() -> list[dict]:
+def run_scenarios(mode: str = "fixed") -> list[dict]:
     docs_by_id = {d[0]: d for d in DOCUMENTS}
     pipelines = []
     for cls in (NlqlRag, LangChainRag):
         p = cls()
         p.ingest(DOCUMENTS)
         pipelines.append(p)
-    print(f"  {len(DOCUMENTS)} docs ingested by both pipelines; judges panel = {JUDGE_MODELS}")
+    print(f"  [{mode}] {len(DOCUMENTS)} docs ingested; judges = {JUDGE_MODELS}")
 
     def one(q: dict) -> dict:
         row = {"scenario": q["scenario"], "q": q["q"], "expected": q["expected"]}
         for p in pipelines:
-            retrieved = p.retrieve(q)
+            retrieved = p.llm_retrieve(q["q"]) if mode == "llm" else p.retrieve(q)
             ans = answer(q["q"], retrieved, docs_by_id)
             score, breakdown = judge_answer_multi(
                 q["q"], q["points"], ans, JUDGE_MODELS
@@ -217,7 +216,7 @@ def run_scenarios() -> list[dict]:
 # --- report --------------------------------------------------------------------
 
 
-def write_report(benchmarks: list, scen_rows: list[dict]) -> None:
+def write_report(benchmarks: list, scen_rows: list[dict], llm_rows: list[dict] | None = None) -> None:
     out: list[str] = []
     out.append("# NLQL vs LangChain — retrieval benchmark\n")
     out.append(
@@ -305,6 +304,24 @@ def write_report(benchmarks: list, scen_rows: list[dict]) -> None:
             out.append(f"  - answer: {d['answer']}")
         out.append("")
 
+    if llm_rows:
+        out.append("\n## LLM-generated IR vs fixed IR\n")
+        out.append(
+            "NLQL's killer feature: an LLM sees the `function_tool()` JSON Schema and "
+            "emits a complete Query IR (WHERE / OR / AND / CONTAINS / SPAN / limit) — "
+            "far more expressive than LangChain's `{query, filter}`.\n"
+        )
+        out.append("| pipeline | mode | score | hit | prec |")
+        out.append("|---|---|---|---|---|")
+        for name in PIPELINE_NAMES:
+            for mode_name, rows in [("fixed", scen_rows), ("LLM-gen", llm_rows)]:
+                out.append(
+                    f"| {name} | {mode_name} | "
+                    f"{mean(r[name]['score'] for r in rows):.2f} | "
+                    f"{mean(r[name]['hit'] for r in rows):.0%} | "
+                    f"{mean(r[name]['precision'] for r in rows):.0%} |"
+                )
+
     here = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(here, "report.md"), "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
@@ -322,10 +339,12 @@ def main() -> None:
             a = agg[p]
             print(f"  {bname:14} {p:10} recall@10={a['recall@10']:.1%}  MRR={a['mrr']:.3f}")
 
-    print("\n=== 2) constructed capability scenarios (self-authored) ===")
-    scen_rows = run_scenarios()
+    print("\n=== 2) constructed scenarios — fixed IR (hand-written NLQL) ===")
+    fixed_rows = run_scenarios(mode="fixed")
+    print("\n=== 3) constructed scenarios — LLM-generated IR (function_tool) ===")
+    llm_rows = run_scenarios(mode="llm")
 
-    write_report(benchmarks, scen_rows)
+    write_report(benchmarks, fixed_rows, llm_rows)
     print("\nreport -> eval/report.md")
 
 

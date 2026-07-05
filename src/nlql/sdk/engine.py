@@ -53,7 +53,7 @@ class Engine:
         *,
         store: Store | None = None,
         registry: Registry | None = None,
-        granularity: str = "sentence",
+        granularity: str = "chunk",
         normalizer: Normalizer | None = None,
         cache: EmbeddingCache | None = None,
         field_types: dict[str, TypeTag] | None = None,

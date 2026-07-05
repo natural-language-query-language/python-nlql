@@ -183,10 +183,27 @@ class TestExecutorSemantics:
         assert results[0].doc_id in {"d1", "d3"}
         assert "." in results[0].content
 
-    def test_unsupported_granularity_raises(self) -> None:
-        ex = build_executor()
-        with pytest.raises(NLQLPlanError):
-            ex.execute(parse('SELECT CHUNK WHERE meta.status == "published"'))
+    def test_cross_granularity_chunk_from_sentence(self) -> None:
+        """SELECT CHUNK from a sentence-indexed store now aggregates (used to raise)."""
+        ex = build_executor()  # default granularity = "sentence"
+        results = ex.execute(parse('SELECT CHUNK WHERE meta.status == "published"'))
+        assert len(results) >= 1
+        assert all(r.kind == "chunk" for r in results)
+
+    def test_cross_granularity_sentence_from_chunk(self) -> None:
+        """SELECT SENTENCE from a chunk-indexed store splits at query time."""
+        ex = build_executor(granularity="chunk")
+        results = ex.execute(parse("SELECT SENTENCE"))
+        assert len(results) >= 1
+        assert all(r.kind == "sentence" for r in results)
+
+    def test_cross_granularity_document_any(self) -> None:
+        """SELECT DOCUMENT works from both sentence and chunk stores."""
+        for g in ("sentence", "chunk"):
+            ex = build_executor(granularity=g)
+            results = ex.execute(parse("SELECT DOCUMENT"))
+            assert len(results) >= 1
+            assert all(r.kind == "document" for r in results)
 
     def test_empty_store(self) -> None:
         ex = build_executor(docs=[])
