@@ -189,6 +189,41 @@ QUESTIONS: list[dict] = [
      "filter": None, "filter_date_gte": "2025-01-01",
      "expected": ["todo-qdrant-migrate", "todo-bench-rerun", "todo-i18n-docs", "todo-release-02", "news-2025"],
      "points": "2025 items: qdrant migration, bench rerun, i18n docs, v0.2 release, 2025 agent news"},
+
+    # 7. negation — exclusion (status != "draft"). LangChain's retriever has no
+    #    native != filter, so drafts leak into its results.
+    {"scenario": "negation", "q": "Show me the published agent docs (not the drafts).",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "AI agent") WHERE meta.status != "draft" ORDER BY rel DESC LIMIT 3',
+     "filter": None, "filter_not": {"status": "draft"}, "expected": ["agt-planning", "agt-memory"],
+     "points": "agent docs that are published: planning, memory (NOT the draft ones)"},
+    {"scenario": "negation", "q": "Which RAG docs are published (exclude drafts)?",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "RAG retrieval indexing") WHERE meta.status != "draft" ORDER BY rel DESC LIMIT 5',
+     "filter": None, "filter_not": {"status": "draft"},
+     "expected": ["rag-index", "rag-retrieve", "rag-rerank", "rag-eval"],
+     "points": "published RAG docs: indexing, retrieval, reranking, evaluation (NOT the draft chunking one)"},
+    {"scenario": "negation", "q": "List the published transformer docs (no drafts).",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "transformer architecture attention") WHERE meta.status != "draft" ORDER BY rel DESC LIMIT 5',
+     "filter": None, "filter_not": {"status": "draft"},
+     "expected": ["tx-attention", "tx-arch", "tx-bert", "llm-gpt"],
+     "points": "published transformer docs: attention, architecture, BERT, GPT (NOT the draft MoE one)"},
+
+    # 8. distractor — high-similarity noise: several docs are semantically close
+    #    but only a subset satisfies the hard conditions; precision under pressure.
+    {"scenario": "distractor", "q": "Published RAG docs from 2024 (there are draft and 2025 ones too).",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "RAG retrieval indexing rerank") WHERE meta.status == "published" AND meta.date >= "2024-01-01" AND meta.date <= "2024-12-31" ORDER BY rel DESC LIMIT 5',
+     "filter": {"status": "published"}, "filter_date_gte": "2024-01-01", "filter_date_lte": "2024-12-31",
+     "expected": ["rag-index", "rag-retrieve", "rag-eval"],
+     "points": "published 2024 RAG docs: indexing, retrieval, evaluation (NOT the draft chunking or the 2025 rerank)"},
+    {"scenario": "distractor", "q": "Published agent docs from 2024 only.",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "AI agent") WHERE meta.status == "published" AND meta.date >= "2024-01-01" AND meta.date <= "2024-12-31" ORDER BY rel DESC LIMIT 5',
+     "filter": {"status": "published"}, "filter_date_gte": "2024-01-01", "filter_date_lte": "2024-12-31",
+     "expected": ["agt-planning", "agt-memory"],
+     "points": "published 2024 agent docs: planning, memory (NOT the 2024 draft tools or the 2023 multi-agent)"},
+    {"scenario": "distractor", "q": "Show me the high-priority todos that are done.",
+     "nlql": 'SELECT SENTENCE LET rel = SIMILARITY(content, "completed high priority todo work") WHERE meta.priority == "high" AND meta.done == "true" ORDER BY rel DESC LIMIT 5',
+     "filter": {"priority": "high", "done": "true"},
+     "expected": ["todo-rag-doc", "todo-eval-harness"],
+     "points": "high-priority AND done todos: RAG docs, eval harness (NOT the pending high-priority migration or the done medium ones)"},
 ]
 
-SCENARIOS = ["semantic", "hybrid", "date", "keyword", "composite", "vague"]
+SCENARIOS = ["semantic", "hybrid", "date", "keyword", "composite", "vague", "negation", "distractor"]

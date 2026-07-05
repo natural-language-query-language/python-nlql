@@ -31,3 +31,6 @@ site/
 
 # spec-workflow tooling data
 .spec-workflow/
+
+# eval harness LLM-call cache (deterministic prompts, regenerated locally)
+eval/.cache/
