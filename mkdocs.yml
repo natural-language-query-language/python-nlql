@@ -1,0 +1,214 @@
+# NLQL 文档站配置 —— MkDocs Material + mkdocstrings + mkdocs-static-i18n + llmstxt
+#
+# 启动: mkdocs serve            (http://127.0.0.1:8000)
+# 构建: mkdocs build --strict   (CI 关卡: 死链/配置错/抓取失败即非零退出)
+# 装依赖: pip install -e ".[docs]"  或  pip install -r requirements-docs.txt
+#
+# i18n: folder 模式, docs/zh/ 与 docs/en/ 镜像。中文默认, 右上角语言切换。
+
+site_name: NLQL
+# 本地 mkdocs serve 以 site_url 的 path 为根, 用根路径方便预览。
+# 部署到 GitHub Pages project site 时改为: https://<org>.github.io/python-nlql/
+site_url: https://nlql.dev/
+site_description: >-
+  NLQL 是一个语义检索工具：用类似 SQL 的语句从文本中查找相关内容，适合 Agent 与 RAG 应用。
+  NLQL 语句、Python 链式构造、LLM 工具调用三种写法编译到同一份 IR，结果一致。
+  支持 Qdrant、Faiss、Chroma、HnswLib、pgvector 等可插拔后端，以及文本与图像的多模态检索。
+site_author: Okysu
+repo_url: https://github.com/natural-language-query-language/python-nlql
+repo_name: natural-language-query-language/python-nlql
+edit_uri: edit/main/docs/
+
+docs_dir: docs
+site_dir: site
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.path
+    - navigation.footer
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 切换深色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 切换浅色模式
+  font:
+    text: Noto Sans SC
+    code: JetBrains Mono
+  icon:
+    logo: material/database-search
+
+hooks:
+  - docs/hooks.py
+
+plugins:
+  - i18n:
+      docs_structure: folder
+      fallback_to_default: false
+      languages:
+        - locale: zh
+          default: true
+          name: 中文
+          build: true
+          site_name: NLQL 文档
+        - locale: en
+          name: English
+          build: true
+          site_name: NLQL Docs
+          nav_translations:
+            首页: Home
+            概念: Concepts
+            概览: Overview
+            架构: Architecture
+            数据模型: Data model
+            查询语法: Query syntax
+            三种写法: Three forms
+            执行流程: Execution flow
+            索引与缓存: Index & cache
+            写入流程: Ingestion
+            注册与扩展: Registry & extensions
+            字段类型: Field types
+            混合引擎: Hybrid engine
+            Store 接口: Store interface
+            多模态: Multimodal
+            教程: Tutorials
+            快速开始: Quick start
+            混合后端: Hybrid backends
+            LLM 工具调用: LLM tool calling
+            多模态检索: Multimodal search
+            两段式重排: Two-stage rerank
+            文档加载: Document loading
+            API 参考: API reference
+            总览: Overview
+            性能: Performance
+            关于: About
+            许可证: License
+  - search:
+      separator: '[\s\-\.]+'
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          # 关键: 把 src/ 加进 sys.path, 免 pip install -e . 即可让 mkdocstrings 读到 nlql。
+          paths: [src]
+          options:
+            docstring_style: google
+            members_order: source
+            filters: ["!^_[^_]"]
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            separate_signature: true
+            show_signature_annotations: true
+            signature_crossrefs: true
+            merge_init_into_class: true
+            heading_level: 2
+            inherited_members: false
+            show_if_no_docstring: true
+  # llms.txt 由 docs/hooks.py 生成 (on_post_build, 读 docs/zh/), 兼容 i18n folder 模式。
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.keys
+  - pymdownx.snippets:
+      base_path: [docs, .]
+      check_paths: true
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: "#"
+      toc_depth: 3
+  - attr_list
+  - md_in_html
+  - def_list
+  - footnotes
+  - tables
+  - abbr
+
+nav:
+  - 首页: index.md
+  - 概念:
+      - 概览: content/concepts/overview.md
+      - 架构: content/concepts/architecture.md
+      - 数据模型: content/concepts/data-model.md
+      - 查询语法: content/concepts/syntax.md
+      - 三种写法: content/concepts/three-entries.md
+      - 执行流程: content/concepts/evaluation.md
+      - 索引与缓存: content/concepts/index-cache.md
+      - 写入流程: content/concepts/ingestion.md
+      - 注册与扩展: content/concepts/registry.md
+      - 字段类型: content/concepts/type-system.md
+      - 混合引擎: content/concepts/hybrid-pushdown.md
+      - Store 接口: content/concepts/store-protocol.md
+      - 多模态: content/concepts/multimodal.md
+  - 教程:
+      - 快速开始: content/tutorials/quickstart.md
+      - Query Builder: content/tutorials/query-builder.md
+      - 混合后端: content/tutorials/hybrid-stores.md
+      - LLM 工具调用: content/tutorials/llm-function-calling.md
+      - 多模态检索: content/tutorials/multimodal-search.md
+      - 两段式重排: content/tutorials/reranking.md
+      - 文档加载: content/tutorials/document-loading.md
+  - API 参考:
+      - 总览: reference/index.md
+      - SDK (Engine/Builder): reference/sdk.md
+      - 数据模型: reference/model.md
+      - 语言与解析: reference/lang.md
+      - Query IR: reference/ir.md
+      - Embedder: reference/embed.md
+      - Reranker: reference/rerank.md
+      - Store: reference/store.md
+      - Registry: reference/registry.md
+      - Ingestion: reference/ingest.md
+      - Planner: reference/plan.md
+      - Executor: reference/exec.md
+      - Loaders: reference/loaders.md
+      - Types: reference/types.md
+      - Errors: reference/errors.md
+  - 性能: performance.md
+  - 关于:
+      - 许可证: about/license.md

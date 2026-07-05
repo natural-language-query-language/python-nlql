@@ -1,0 +1,54 @@
+name: publish
+
+# 发布到 PyPI: 推送 v* 标签或发布 GitHub Release 时触发。
+# 使用 PyPI Trusted Publishing (OIDC), 无需配置 API token ——
+# 前置: 在 https://pypi.org/manage/account/publishing/ 添加 GitHub trusted publisher:
+#   owner    : natural-language-query-language
+#   repo     : python-nlql
+#   workflow : publish.yml
+#   env name : pypi
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install build frontend
+        run: pip install build
+      - name: Build distributions
+        run: python -m build
+      - name: Verify metadata
+        run: python -m twine check dist/* || pip install twine && python -m twine check dist/*
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+    permissions:
+      id-token: write  # trusted publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1

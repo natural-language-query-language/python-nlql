@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtualenv
+.venv/
+venv/
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+
+# MkDocs build output
+site/
+
+# Claude Code local settings (personal, not shared)
+.claude/settings.local.json
+
+# spec-workflow tooling data
+.spec-workflow/

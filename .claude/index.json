@@ -1,0 +1,72 @@
+{
+  "generated_at": "2026-07-05T13:31:58+00:00",
+  "project": {
+    "name": "python-nlql",
+    "package": "nlql",
+    "version": "0.2.0",
+    "language": "python",
+    "python_requires": ">=3.11",
+    "summary": "NLQL v2 — SQL-style semantic query language and retrieval middleware for Agents & RAG",
+    "build_backend": "hatchling",
+    "entrypoint": "src/nlql/__init__.py",
+    "design_doc": "DESIGN.md",
+    "milestone_state": {
+      "M0_skeleton": "done",
+      "M1_text_mvp": "done",
+      "M2_store_adapters": "done",
+      "M3_llm_face": "schema/tool/explain/builder + search_ir ready",
+      "M4_tokenization_types": "done",
+      "M5_multimodal": "done",
+      "M6_acceleration": "profiling + numpy columnar filter (~19x) + HnswStore landed; Rust deferred"
+    },
+    "quality": {
+      "tests": 293,
+      "coverage": "90%",
+      "mypy": "strict",
+      "ruff": "passing",
+      "ci_python": "3.11+ (verified on 3.14)"
+    }
+  },
+  "modules": [
+    {"name": "model", "path": "src/nlql/model", "role": "Modality-agnostic data model: Payload, Document, Unit, Vector", "public": ["Document", "Payload", "Unit", "Modality", "Vector", "Span", "UnitKind"]},
+    {"name": "errors", "path": "src/nlql/errors.py", "role": "Typed exception hierarchy rooted at NLQLError", "public": ["NLQLError", "NLQLParseError", "NLQLSchemaError", "NLQLRegistryError", "NLQLTypeError", "NLQLPlanError", "NLQLExecutionError"]},
+    {"name": "types", "path": "src/nlql/types", "role": "Type system: TypeTag enum + function Signature", "public": ["TypeTag", "Signature"]},
+    {"name": "registry", "path": "src/nlql/registry", "role": "Unified capability registry (function/splitter/embedder/modality) with parent-child scope", "public": ["Registry", "GLOBAL_REGISTRY", "Capability", "register_function", "register_splitter"]},
+    {"name": "ir", "path": "src/nlql/ir", "role": "Query IR: canonical JSON-serializable AST + JSON Schema export", "public": ["Query", "Select", "Binding", "Expr", "Literal", "Path", "Ref", "Call", "Compare", "And", "Or", "Not", "expr_from_dict", "query_json_schema"]},
+    {"name": "lang", "path": "src/nlql/lang", "role": "NLQL string front-end: lark grammar + transformer + parser -> IR", "public": ["NLQLParser", "parse"], "grammar": "src/nlql/lang/grammar.lark"},
+    {"name": "embed", "path": "src/nlql/embed", "role": "Embedder protocol + backends (Fake/OpenAI/SentenceTransformers/DoubaoVision/CLIP) + cache", "public": ["Embedder", "BaseEmbedder", "FakeEmbedder", "OpenAIEmbedder", "EmbeddingCache", "CachedEmbedder", "MultimodalEmbedder", "FakeMultimodalEmbedder", "DoubaoVisionEmbedder", "supports_images"]},
+    {"name": "ingest", "path": "src/nlql/ingest", "role": "Write-time pipeline: normalizer + pluggable splitter + indexer", "public": ["IngestionPipeline", "Normalizer", "DefaultNormalizer", "split_sentences", "split_chunks", "LanguageRouter", "detect_language", "make_pysbd_splitter"]},
+    {"name": "store", "path": "src/nlql/store", "role": "Store protocol + LocalStore + adapters (Faiss/Hnsw/Qdrant/Chroma/PgVector) + columnar filter", "public": ["Store", "StoreCaps", "LocalStore", "matches_filter"], "adapters": ["faiss_store", "hnsw_store", "qdrant_store", "chroma_store", "pgvector_store"]},
+    {"name": "plan", "path": "src/nlql/plan", "role": "Query planning: score extraction, QueryPlan, filter pushdown split", "public": ["Planner", "QueryPlan", "Scorer", "score_key", "FilterSplit", "split_filter", "is_pushable", "metadata_field"]},
+    {"name": "exec", "path": "src/nlql/exec", "role": "Execution: expression Evaluator (no special-case) + Executor (recall->filter->rerank->limit)", "public": ["Executor", "Evaluator"]},
+    {"name": "rerank", "path": "src/nlql/rerank", "role": "Two-stage retrieval: pluggable Reranker protocol + Fake + CrossEncoder", "public": ["Reranker", "FakeReranker", "CrossEncoderReranker"]},
+    {"name": "loaders", "path": "src/nlql/loaders", "role": "Document loaders dispatched by extension (.txt/.md/.docx/.pdf)", "public": ["Loader", "load_documents", "register_loader", "loader_for", "TextLoader", "DocxLoader", "PdfLoader"]},
+    {"name": "sdk", "path": "src/nlql/sdk", "role": "High-level SDK: Engine (DI entry) + fluent Query Builder", "public": ["Engine", "QueryBuilder", "select", "F", "Meta", "content", "field", "similarity", "contains", "length"]}
+  ],
+  "tests": {
+    "path": "tests",
+    "runner": "pytest",
+    "fixtures": "tests/conftest.py (FakeEmbedder dim=64)",
+    "files": [
+      "test_model.py", "test_registry.py", "test_ir.py", "test_lang.py", "test_embed.py",
+      "test_ingest.py", "test_exec.py", "test_builder.py", "test_sdk.py", "test_store.py",
+      "test_faiss_store.py", "test_qdrant_store.py", "test_language.py", "test_types.py",
+      "test_doubao.py", "test_chroma_store.py", "test_pushdown.py", "test_pgvector_store.py",
+      "test_columns.py", "test_hnsw_store.py", "test_cross_store.py", "test_rerank.py",
+      "test_multimodal.py", "test_loaders.py", "test_multivector.py", "test_expressions.py"
+    ]
+  },
+  "coverage": {
+    "total_source_files_py": 63,
+    "scanned_files": "all 13 module __init__.py + engine.py + store/base.py + conftest + pyproject + DESIGN + README + benchmarks",
+    "coverage_pct_estimate": "100% of modules surfaced; high-signal sample of internals",
+    "gaps": []
+  },
+  "ignored": {
+    "reason": "per .gitignore",
+    "patterns": [".venv/", "__pycache__/", ".pytest_cache/", ".mypy_cache/", ".ruff_cache/", ".coverage", "build/", "dist/", "*.egg-info/"],
+    "largest_skipped": ".venv/Lib/site-packages (~48500 third-party files)"
+  },
+  "truncated": false,
+  "next_steps": []
+}

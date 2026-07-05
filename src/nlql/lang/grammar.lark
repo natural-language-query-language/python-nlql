@@ -1,0 +1,76 @@
+// NLQL/2 grammar — the orthogonal "LET" surface syntax.
+//
+// Only structural keywords and a small, closed set of infix predicates live in the
+// grammar. Every function/operator is called as NAME(args) and validated against the
+// registry during semantic analysis, so adding a function never touches this file.
+//
+// Keywords are UPPERCASE and case-sensitive, which keeps them clear of lowercase
+// metadata identifiers (e.g. `meta.status`, `meta.window`).
+
+?start: query
+
+query: "SELECT" select_unit let_clause? where_clause? order_clause? limit_clause?
+
+// -- SELECT granularity --------------------------------------------------------
+?select_unit: UNIT_TYPE            -> plain_unit
+            | span_unit
+span_unit: "SPAN" "(" UNIT_TYPE ("," span_window)? ")"
+?span_window: NAME "=>" NUMBER     -> named_window
+            | NUMBER               -> pos_window
+UNIT_TYPE: "DOCUMENT" | "CHUNK" | "SENTENCE"
+
+// -- LET named bindings --------------------------------------------------------
+let_clause: "LET" binding ("," binding)*
+binding: NAME "=" expr
+
+// -- WHERE ---------------------------------------------------------------------
+where_clause: "WHERE" expr
+
+// -- ORDER BY ------------------------------------------------------------------
+order_clause: "ORDER" "BY" order_key ("," order_key)*
+order_key: expr ORDER_DIR?
+ORDER_DIR: "ASC" | "DESC"
+
+// -- LIMIT ---------------------------------------------------------------------
+limit_clause: "LIMIT" NUMBER
+
+// -- Expressions (precedence: OR < AND < NOT < compare < infix < atom) ----------
+?expr: or_expr
+?or_expr: and_expr
+        | or_expr "OR" and_expr    -> or_op
+?and_expr: not_expr
+         | and_expr "AND" not_expr -> and_op
+?not_expr: "NOT" not_expr          -> not_op
+         | comparison
+?comparison: predicate
+           | predicate COMPARE_OP predicate -> compare
+?predicate: atom
+          | atom INFIX_PRED atom   -> infix_pred
+?atom: literal
+     | call
+     | path
+     | "(" expr ")"
+
+call: NAME "(" arglist? ")"
+arglist: expr ("," expr)*
+path: NAME ("." NAME)*
+
+?literal: STRING   -> str_lit
+        | NUMBER   -> num_lit
+        | BOOLEAN  -> bool_lit
+        | NULL     -> null_lit
+
+// -- Terminals -----------------------------------------------------------------
+COMPARE_OP: "==" | "!=" | "<=" | ">=" | "<" | ">"
+INFIX_PRED: "CONTAINS" | "MATCH" | "LIKE"
+// Priority .2 so these literal keywords outrank NAME in value position. After a dot
+// (a path segment) only NAME is valid, so `meta.true` / `meta.null` still parse.
+BOOLEAN.2: "true" | "false"
+NULL.2: "null"
+
+NAME: /[a-zA-Z_][a-zA-Z0-9_]*/
+STRING: /"[^"]*"/ | /'[^']*'/
+NUMBER: /-?\d+(\.\d+)?/
+
+%import common.WS
+%ignore WS
