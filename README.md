@@ -16,7 +16,7 @@ Built for Agent and RAG applications: the query itself is structured data, usabl
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())  # or OpenAIEmbedder, or any Embedder
+engine = nlql.Engine(nlql.embed.FakeEmbedder())  # or OpenAIEmbedder, or any Embedder
 engine.add_text("AI agents plan tasks and call tools.", metadata={"status": "published"})
 engine.add_text("Banana bread needs flour and sugar.", metadata={"status": "draft"})
 

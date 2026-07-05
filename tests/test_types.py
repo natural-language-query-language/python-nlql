@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.types import TypeTag
 from nlql.types.coerce import compare_values
 

@@ -5,7 +5,7 @@
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.OpenAIEmbedder(base_url="...", api_key="..."))
+engine = nlql.Engine(nlql.embed.OpenAIEmbedder(base_url="...", api_key="..."))
 engine.add_text("AI agents plan tasks and call external tools.")
 engine.add_text("Banana bread is a quick loaf made with ripe bananas.")
 

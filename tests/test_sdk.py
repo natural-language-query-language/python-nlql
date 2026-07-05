@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import nlql
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.sdk.builder import F, Meta, select, similarity
 from nlql.types import Signature, TypeTag
 

@@ -12,6 +12,7 @@ import tempfile
 from pathlib import Path
 
 import nlql
+from nlql.embed import FakeEmbedder
 
 
 def main() -> None:
@@ -35,7 +36,7 @@ def main() -> None:
     except ImportError:
         print("(python-docx not installed — skipping the .docx file)")
 
-    engine = nlql.Engine(nlql.FakeEmbedder())
+    engine = nlql.Engine(FakeEmbedder())
     ids = engine.add_files([str(f) for f in files])
     print(f"loaded {len(ids)} files -> {len(engine)} sentence units: {ids}\n")
 

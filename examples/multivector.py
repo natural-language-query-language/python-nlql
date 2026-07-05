@@ -11,14 +11,15 @@ Fake ones stand in for CLIP / OpenAI).
 from __future__ import annotations
 
 import nlql
+from nlql.embed import FakeEmbedder
 from nlql.embed import FakeMultimodalEmbedder
 
 
 def main() -> None:
     engine = nlql.Engine(
-        nlql.FakeEmbedder(),
+        FakeEmbedder(),
         granularity="chunk",
-        named_embedders={"image": FakeMultimodalEmbedder(), "title": nlql.FakeEmbedder()},
+        named_embedders={"image": FakeMultimodalEmbedder(), "title": FakeEmbedder()},
     )
     engine.add_multivector(
         "dress",

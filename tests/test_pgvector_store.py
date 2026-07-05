@@ -56,7 +56,8 @@ class TestToSqlWhere:
 
 @pytest.mark.skipif(not os.environ.get("NLQL_PG_DSN"), reason="set NLQL_PG_DSN for the live test")
 def test_live_pgvector_pushdown() -> None:
-    from nlql import Document, Engine, FakeEmbedder
+    from nlql import Document, Engine
+    from nlql.embed import FakeEmbedder
     from nlql.store.pgvector_store import PgVectorStore
 
     store = PgVectorStore(os.environ["NLQL_PG_DSN"], table="nlql_test")

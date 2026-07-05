@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from nlql import Engine, FakeEmbedder
+from nlql import Engine
+from nlql.embed import FakeEmbedder
 from nlql.embed import FakeMultimodalEmbedder
 from nlql.errors import NLQLError
 from nlql.loaders import PdfLoader, load_documents, register_loader

@@ -16,7 +16,7 @@ NLQL 让你用类似 SQL 的语句做语义检索。把"从文本里找相关内
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())  # 或 OpenAIEmbedder，以及任意 Embedder 实现
+engine = nlql.Engine(nlql.embed.FakeEmbedder())  # 或 OpenAIEmbedder，以及任意 Embedder 实现
 engine.add_text("AI agents plan tasks and call tools.", metadata={"status": "published"})
 engine.add_text("Banana bread needs flour and sugar.", metadata={"status": "draft"})
 

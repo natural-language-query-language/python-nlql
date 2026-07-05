@@ -50,7 +50,7 @@ def my_fn(text: str) -> float: ...
 **Instance-level registration** — applies only to the current engine and does not leak to other instances:
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 
 @engine.register_function("TEMP_SCORE")
 def temp_score(text: str) -> float: ...
@@ -71,7 +71,7 @@ def pysbd_sentences(text: str) -> list[str]:
     seg = pysbd.Segmenter(language="en", clean=False)
     return seg.segment(text)
 
-engine = nlql.Engine(nlql.FakeEmbedder())  # the splitter above is used automatically at ingest
+engine = nlql.Engine(nlql.embed.FakeEmbedder())  # the splitter above is used automatically at ingest
 ```
 
 The same mechanism uses the splitter at both ingest and query time, so the boundaries returned by `SELECT SENTENCE` / `SELECT SPAN(SENTENCE, window => n)` match those from ingestion — there is no mismatch from re-splitting on the fly at query time.
@@ -83,7 +83,7 @@ You can also register a new granularity name (such as `"paragraph"`) and specify
 def split_paragraphs(text: str) -> list[str]:
     return [p for p in text.split("\n\n") if p.strip()]
 
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="paragraph")
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="paragraph")
 ```
 
 ## Custom Embedders

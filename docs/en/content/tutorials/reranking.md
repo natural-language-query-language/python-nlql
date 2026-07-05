@@ -6,7 +6,7 @@ This example uses `FakeEmbedder` and `FakeReranker` for an offline demonstration
 
 ```python
 import nlql
-from nlql import FakeReranker
+from nlql.rerank import FakeReranker
 
 DOCS = [
     # Contains all query terms but is very long; dual-encoder similarity gets diluted
@@ -20,7 +20,7 @@ QUERY = 'SELECT SENTENCE LET rel = SIMILARITY(content, "agent memory planning to
 ## Without a reranker
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), reranker=None, rerank_factor=10)
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), reranker=None, rerank_factor=10)
 for text, doc_id in DOCS:
     engine.add_text(text, id=doc_id)
 
@@ -34,7 +34,7 @@ The `full` document covers every query term, but because the sentence is long, i
 ## With a reranker
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), reranker=FakeReranker(), rerank_factor=10)
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), reranker=FakeReranker(), rerank_factor=10)
 for text, doc_id in DOCS:
     engine.add_text(text, id=doc_id)
 
@@ -52,7 +52,7 @@ The `Reranker` protocol requires `rerank(query, units) -> units`: it takes the q
 `rerank_factor` controls the over-fetch multiple: the final `limit` multiplied by this factor gives the recall count. A larger factor yields more complete recall and leans more on the reranker for precision, but is also slower. Common values range from 5 to 20.
 
 ```python
-nlql.Engine(nlql.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
+nlql.Engine(nlql.embed.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
 ```
 
 ## CrossEncoder for production
@@ -60,10 +60,10 @@ nlql.Engine(nlql.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
 `FakeReranker` is for demonstration only. In production, replace it with a real reranker:
 
 ```python
-from nlql import CrossEncoderReranker
+from nlql.rerank import CrossEncoderReranker
 
 engine = nlql.Engine(
-    nlql.OpenAIEmbedder(),
+    nlql.embed.OpenAIEmbedder(),
     reranker=CrossEncoderReranker(model="cross-encoder/ms-marco-MiniLM-L-6-v2"),
     rerank_factor=5,
 )

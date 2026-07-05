@@ -10,7 +10,8 @@ different plans; the results are byte-identical.
 
 from __future__ import annotations
 
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.store import LocalStore
 
 CORPUS = [

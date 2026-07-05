@@ -5,7 +5,7 @@ When a document enters NLQL it passes through four stages in order: normalize, s
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.OpenAIEmbedder(base_url="...", api_key="..."))
+engine = nlql.Engine(nlql.embed.OpenAIEmbedder(base_url="...", api_key="..."))
 doc_id = engine.add_text(
     "AI agents plan tasks. They keep memory and call external tools.",
     metadata={"status": "published", "year": 2026},
@@ -26,8 +26,8 @@ Before splitting, text is normalized: whitespace and line breaks are unified, an
 The normalized text is sliced into units by the splitter for the active granularity. The default is by sentence (`SENTENCE`), and the built-in splitter covers Chinese, English, Japanese, and CJK punctuation.
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="sentence")  # default
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="chunk")     # use the chunk splitter instead
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="sentence")  # default
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="chunk")     # use the chunk splitter instead
 ```
 
 Splitting happens at ingest and is reused at query time — the boundaries returned by `SELECT SENTENCE` and `SELECT SPAN(SENTENCE, window => n)` both come from this stage; there is no on-the-fly re-splitting at query time.
@@ -64,7 +64,7 @@ engine.add_documents([
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 ids = engine.add_files(["agents.txt", "rag.md"])
 print(f"loaded into {len(engine)} units: {ids}")
 ```
@@ -78,7 +78,7 @@ print(f"loaded into {len(engine)} units: {ids}")
 - **Custom granularity** — register your own splitter (see [Registry and Extension](./registry.md)), for example by paragraph or by chapter.
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="chunk")
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="chunk")
 engine.add_file("long_document.md")
 # each chunk is one retrieval unit
 ```

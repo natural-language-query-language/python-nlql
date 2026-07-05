@@ -14,6 +14,7 @@ from __future__ import annotations
 import os
 
 import nlql
+from nlql.embed import OpenAIEmbedder
 
 
 def main() -> None:
@@ -22,7 +23,7 @@ def main() -> None:
         raise SystemExit("set NLQL_OPENAI_API_KEY (and optionally NLQL_OPENAI_BASE_URL) to run this")
 
     engine = nlql.Engine(
-        nlql.OpenAIEmbedder(
+        OpenAIEmbedder(
             api_key=api_key,
             base_url=os.environ.get("NLQL_OPENAI_BASE_URL", "https://api.openai.com/v1"),
             model="text-embedding-3-small",

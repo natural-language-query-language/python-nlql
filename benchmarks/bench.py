@@ -17,7 +17,8 @@ import random
 import sys
 import time
 
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.lang import parse
 from nlql.store import LocalStore
 

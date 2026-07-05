@@ -7,6 +7,7 @@ Uses the deterministic FakeEmbedder, so it needs no network or model download.
 from __future__ import annotations
 
 import nlql
+from nlql.embed import FakeEmbedder
 from nlql.sdk.builder import F, Meta, select, similarity
 
 DOCS = [
@@ -17,7 +18,7 @@ DOCS = [
 
 
 def main() -> None:
-    engine = nlql.Engine(nlql.FakeEmbedder())
+    engine = nlql.Engine(FakeEmbedder())
     for i, (text, meta) in enumerate(DOCS):
         engine.add_text(text, id=f"doc-{i}", metadata=meta)
     print(f"indexed {len(engine)} sentence units\n")

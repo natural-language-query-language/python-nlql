@@ -25,7 +25,7 @@ files = [tmp / "agents.txt", tmp / "rag.md"]
 `add_files` 接收路径列表，内部对每个文件按扩展名分派加载器。`.txt` 与 `.md` 走纯文本加载器，开箱即用。
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 ids = engine.add_files([str(f) for f in files])
 print(f"loaded {len(ids)} files -> {len(engine)} sentence units: {ids}")
 ```
@@ -53,7 +53,7 @@ try:
 except ImportError:
     print("(python-docx not installed — skipping the .docx file)")
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 ids = engine.add_files([str(f) for f in files])
 ```
 

@@ -13,7 +13,7 @@
 
 ```python
 import nlql
-engine = nlql.Engine(nlql.FakeEmbedder())        # 或 OpenAIEmbedder(base_url=..., api_key=...)
+engine = nlql.Engine(nlql.embed.FakeEmbedder())        # 或 OpenAIEmbedder(base_url=..., api_key=...)
 engine.add_text("...", metadata={"status": "published"})
 results = engine.search('SELECT SENTENCE LET rel = SIMILARITY(content, "x") WHERE rel >= 0.2 LIMIT 5')
 ```

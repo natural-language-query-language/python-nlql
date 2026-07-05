@@ -5,7 +5,7 @@
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.OpenAIEmbedder(base_url="...", api_key="..."))
+engine = nlql.Engine(nlql.embed.OpenAIEmbedder(base_url="...", api_key="..."))
 doc_id = engine.add_text(
     "AI agents plan tasks. They keep memory and call external tools.",
     metadata={"status": "published", "year": 2026},
@@ -26,8 +26,8 @@ results = engine.search(
 规整后的文本按当前粒度对应的分词器切成单元。默认按句切（`SENTENCE`），内置分词器覆盖中、英、日及 CJK 标点。
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="sentence")  # 默认
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="chunk")     # 改用 chunk 分词器
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="sentence")  # 默认
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="chunk")     # 改用 chunk 分词器
 ```
 
 切分在写入时完成、查询时复用——`SELECT SENTENCE` 与 `SELECT SPAN(SENTENCE, window => n)` 返回的边界都来自这一步，不会出现查询时临时重切。
@@ -64,7 +64,7 @@ engine.add_documents([
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 ids = engine.add_files(["agents.txt", "rag.md"])
 print(f"loaded into {len(engine)} units: {ids}")
 ```
@@ -78,7 +78,7 @@ print(f"loaded into {len(engine)} units: {ids}")
 - **自定义粒度** —— 注册自己的分词器即可（见 [注册与扩展](./registry.md)），比如按段落、按章节。
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), granularity="chunk")
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), granularity="chunk")
 engine.add_file("long_document.md")
 # 每个 chunk 是一个检索单元
 ```

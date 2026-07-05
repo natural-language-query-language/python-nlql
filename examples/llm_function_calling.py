@@ -12,10 +12,11 @@ from __future__ import annotations
 import json
 
 import nlql
+from nlql.embed import FakeEmbedder
 
 
 def main() -> None:
-    engine = nlql.Engine(nlql.FakeEmbedder())
+    engine = nlql.Engine(FakeEmbedder())
     engine.add_text("AI agents use planning, memory, and tool use.", metadata={"status": "published"})
     engine.add_text("Vector databases store embeddings for similarity search.", metadata={"status": "published"})
 

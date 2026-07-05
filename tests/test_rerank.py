@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from nlql import Document, Engine, FakeEmbedder, FakeReranker
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
+from nlql.rerank import FakeReranker
 from nlql.model import Payload, Unit
 
 

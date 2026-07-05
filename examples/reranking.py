@@ -4,13 +4,14 @@ Run: python examples/reranking.py   (offline; FakeEmbedder + FakeReranker)
 
 The vector stage is a bi-encoder — a short chunk's embedding vs a long query's embedding is
 only a rough match. A reranker re-scores each ``(query, passage)`` pair *jointly* and reorders
-the over-fetched candidates. Swap in ``nlql.CrossEncoderReranker()`` for a real cross-encoder.
+the over-fetched candidates. Swap in ``nlql.rerank.CrossEncoderReranker()`` for a real cross-encoder.
 """
 
 from __future__ import annotations
 
 import nlql
-from nlql import FakeReranker
+from nlql.embed import FakeEmbedder
+from nlql.rerank import FakeReranker
 
 DOCS = [
     # Contains every query term but is long, so its bi-encoder score is diluted.
@@ -23,7 +24,7 @@ QUERY = 'SELECT SENTENCE LET rel = SIMILARITY(content, "agent memory planning to
 
 def main() -> None:
     for label, reranker in [("without reranking", None), ("with FakeReranker", FakeReranker())]:
-        engine = nlql.Engine(nlql.FakeEmbedder(), reranker=reranker, rerank_factor=10)
+        engine = nlql.Engine(FakeEmbedder(), reranker=reranker, rerank_factor=10)
         for text, doc_id in DOCS:
             engine.add_text(text, id=doc_id)
         print(f"== {label} ==")

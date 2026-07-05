@@ -39,7 +39,8 @@ class Engine:
     :class:`~nlql.embed.OpenAIEmbedder` parameterized by ``base_url``; any other provider
     is just another :class:`~nlql.embed.base.Embedder` implementation::
 
-        from nlql import Engine, OpenAIEmbedder, FakeEmbedder
+        from nlql import Engine
+        from nlql.embed import FakeEmbedder, OpenAIEmbedder
 
         Engine(OpenAIEmbedder(base_url="https://your-gateway/v1", api_key="sk-..."))
         Engine(FakeEmbedder())                       # deterministic, offline (tests/demos)

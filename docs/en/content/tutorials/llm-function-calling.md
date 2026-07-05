@@ -8,7 +8,7 @@ The following example uses `FakeEmbedder`, which requires no network access or m
 import json
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 engine.add_text("AI agents use planning, memory, and tool use.",
                 metadata={"status": "published"})
 engine.add_text("Vector databases store embeddings for similarity search.",

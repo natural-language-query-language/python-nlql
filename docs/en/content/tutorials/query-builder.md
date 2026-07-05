@@ -8,7 +8,7 @@ The following example uses `FakeEmbedder`, which requires no network access or m
 import nlql
 from nlql.sdk.builder import select, similarity, Meta, F
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 engine.add_text("AI agents plan tasks, keep memory, and call external tools.",
                 id="doc-0", metadata={"status": "published", "topic": "agents"})
 engine.add_text("Retrieval-augmented generation grounds LLM answers in your documents.",

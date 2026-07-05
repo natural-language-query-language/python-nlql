@@ -10,7 +10,7 @@
 ```python
 import nlql
 
-engine = nlql.Engine(nlql.FakeEmbedder())
+engine = nlql.Engine(nlql.embed.FakeEmbedder())
 
 engine.add_text("AI agents plan tasks, keep memory, and call external tools.",
                 id="doc-0", metadata={"status": "published", "topic": "agents"})

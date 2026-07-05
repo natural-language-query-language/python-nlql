@@ -6,7 +6,7 @@
 
 ```python
 import nlql
-from nlql import FakeReranker
+from nlql.rerank import FakeReranker
 
 DOCS = [
     # 包含全部查询词但很长，双塔相似度被稀释
@@ -20,7 +20,7 @@ QUERY = 'SELECT SENTENCE LET rel = SIMILARITY(content, "agent memory planning to
 ## 不加重排器
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), reranker=None, rerank_factor=10)
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), reranker=None, rerank_factor=10)
 for text, doc_id in DOCS:
     engine.add_text(text, id=doc_id)
 
@@ -34,7 +34,7 @@ for unit in engine.search(QUERY):
 ## 加重排器
 
 ```python
-engine = nlql.Engine(nlql.FakeEmbedder(), reranker=FakeReranker(), rerank_factor=10)
+engine = nlql.Engine(nlql.embed.FakeEmbedder(), reranker=FakeReranker(), rerank_factor=10)
 for text, doc_id in DOCS:
     engine.add_text(text, id=doc_id)
 
@@ -52,7 +52,7 @@ for unit in engine.search(QUERY):
 `rerank_factor` 控制过取倍数：最终需要的 `limit` 乘以这个倍数得到召回数量。倍数越大召回越全、精度越依赖重排器，但也越慢。常用值在 5 到 20 之间。
 
 ```python
-nlql.Engine(nlql.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
+nlql.Engine(nlql.embed.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
 ```
 
 ## 生产用 CrossEncoder
@@ -60,10 +60,10 @@ nlql.Engine(nlql.OpenAIEmbedder(), reranker=FakeReranker(), rerank_factor=5)
 `FakeReranker` 仅用于演示。生产中替换为真实重排器：
 
 ```python
-from nlql import CrossEncoderReranker
+from nlql.rerank import CrossEncoderReranker
 
 engine = nlql.Engine(
-    nlql.OpenAIEmbedder(),
+    nlql.embed.OpenAIEmbedder(),
     reranker=CrossEncoderReranker(model="cross-encoder/ms-marco-MiniLM-L-6-v2"),
     rerank_factor=5,
 )

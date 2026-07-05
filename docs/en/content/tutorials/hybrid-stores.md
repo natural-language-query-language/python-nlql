@@ -9,7 +9,8 @@ All backends conform to the same `Store` interface. The engine preferentially us
 ## Example
 
 ```python
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.store import LocalStore
 
 CORPUS = [

@@ -9,7 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from nlql import Document, Engine, FakeEmbedder
+from nlql import Document, Engine
+from nlql.embed import FakeEmbedder
 from nlql.store import LocalStore
 
 CORPUS = [

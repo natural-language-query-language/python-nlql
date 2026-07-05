@@ -2,10 +2,10 @@
 
 Quick start::
 
-    import nlql
+    from nlql import Engine
+    from nlql.embed import FakeEmbedder   # or OpenAIEmbedder(base_url=..., api_key=...)
 
-    # The embedder is injected — any OpenAI-compatible channel is one class + a base_url.
-    engine = nlql.Engine(nlql.FakeEmbedder())   # or Engine(OpenAIEmbedder(base_url=..., api_key=...))
+    engine = Engine(FakeEmbedder())
     engine.add_text("AI agents plan, use memory, and call tools.", metadata={"status": "published"})
 
     results = engine.search('''
@@ -17,9 +17,12 @@ Quick start::
     ''')
     for unit in results:
         print(unit.scores.get("rel"), unit.content)
+
+Backend implementations (embedders, stores, concrete rerankers) live in their
+submodules: `from nlql.embed import OpenAIEmbedder`, `from nlql.store import
+LocalStore`, `from nlql.rerank import CrossEncoderReranker`.
 """
 
-from nlql.embed import CachedEmbedder, EmbeddingCache, FakeEmbedder, OpenAIEmbedder
 from nlql.errors import (
     NLQLError,
     NLQLExecutionError,
@@ -33,7 +36,7 @@ from nlql.ir import Query, query_json_schema
 from nlql.lang import parse
 from nlql.model import Document, Modality, Payload, Unit
 from nlql.registry import GLOBAL_REGISTRY, Registry, register_function, register_splitter
-from nlql.rerank import CrossEncoderReranker, FakeReranker, Reranker
+from nlql.rerank import Reranker
 from nlql.sdk import (
     Engine,
     F,
@@ -46,7 +49,6 @@ from nlql.sdk import (
     select,
     similarity,
 )
-from nlql.store import LocalStore
 from nlql.types import Signature, TypeTag
 
 __version__ = "0.2.0"
@@ -72,17 +74,9 @@ __all__ = [
     "parse",
     "Query",
     "query_json_schema",
-    # embedders
-    "FakeEmbedder",
-    "OpenAIEmbedder",
-    "EmbeddingCache",
-    "CachedEmbedder",
-    # rerank
+    # rerank protocol (concrete rerankers in nlql.rerank)
     "Reranker",
-    "FakeReranker",
-    "CrossEncoderReranker",
-    # store & registry
-    "LocalStore",
+    # registry
     "Registry",
     "GLOBAL_REGISTRY",
     "register_function",
