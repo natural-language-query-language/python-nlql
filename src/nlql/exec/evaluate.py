@@ -26,7 +26,7 @@ class Evaluator:
     def __init__(self, registry: Registry, field_types: dict[str, TypeTag] | None = None, type_handlers: dict | None = None) -> None:
         self._registry = registry
         self._field_types = field_types or {}
-        self._type_handlers = type_handlers or {}
+        self._type_handlers = type_handlers if type_handlers is not None else {}
 
     def eval(self, expr: Expr, unit: Unit, bindings: dict[str, Expr]) -> Any:
         if isinstance(expr, Literal):
