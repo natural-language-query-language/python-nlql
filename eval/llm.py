@@ -21,7 +21,7 @@ EMBED_MODEL = os.environ.get("NLQL_EVAL_EMBED", "text-embedding-3-small")
 CHAT_MODEL = os.environ.get("NLQL_EVAL_CHAT", "qwen3.7-plus")
 JUDGE_MODELS = [
     m.strip()
-    for m in os.environ.get("NLQL_EVAL_JUDGES", "qwen3.7-max,deepseek-v4-flash,minimax-m3").split(",")
+    for m in os.environ.get("NLQL_EVAL_JUDGES", "qwen3.7-max,gpt-5.5,minimax-m3").split(",")
     if m.strip()
 ]
 JUDGE_MODEL = JUDGE_MODELS[0] if JUDGE_MODELS else "qwen3.7-max"  # back-compat single
@@ -34,7 +34,7 @@ def _client_():
     if _client is None:
         from openai import OpenAI
 
-        _client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
+        _client = OpenAI(base_url=BASE_URL, api_key=API_KEY, timeout=60.0, max_retries=3)
     return _client
 
 

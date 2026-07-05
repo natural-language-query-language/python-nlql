@@ -59,3 +59,37 @@ class NlqlRag:
         )
         units = self.engine.search(nlql)
         return [u.doc_id for u in units[:k]]
+
+    def llm_retrieve(self, question_text: str, k: int = 3) -> list[tuple[str, str]]:
+        """LLM-driven retrieval: the model sees the IR JSON Schema (incl. select.unit
+        and window) and emits a Query IR by intent; search_ir executes it.
+
+        This is the fair, end-to-end path — no hand-written NLQL favoring NLQL.
+        """
+        import json
+
+        from ..llm import chat
+
+        schema = self.engine.function_schema()
+        prompt = (
+            "Build an NLQL Query IR document to retrieve the answer to the question. "
+            "Reply with ONLY the IR JSON, no prose.\n\n"
+            f"JSON Schema: {json.dumps(schema)}\n\n"
+            "Notes:\n"
+            "- content = the text. For semantic relevance use a Call node: "
+            '{node:"call", name:"SIMILARITY", args:[{node:"path",root:"content"}, {node:"literal",value:"<query>"}]}\n'
+            "- meta.* fields available: status, date (YYYY-MM-DD), category, priority, done. "
+            'Reference them as {node:"path",root:"meta",segments:["status"]}.\n'
+            '- Use {node:"call",name:"CONTAINS",args:[<path>,<literal>]} for literal substrings.\n'
+            "- Comparison ops on WHERE: ==, !=, <, >, <=, >= (dates compare as strings, ISO order).\n"
+            '- select.unit is one of document / chunk / sentence; pick by intent '
+            "(whole doc vs passage vs specific sentence). Optional window = SPAN neighbor radius.\n"
+            f"Question: {question_text}"
+        )
+        raw = chat(prompt).strip().strip("`")
+        try:
+            ir = json.loads(raw)
+            units = self.engine.search_ir(ir, limit=k)
+        except Exception:
+            return []  # malformed IR or execution error -> counts as a miss
+        return [(u.doc_id, u.content) for u in units[:k]]

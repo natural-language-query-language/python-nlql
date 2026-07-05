@@ -30,6 +30,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from eval.data.datasets import DOCUMENTS, QUESTIONS, SCENARIOS  # noqa: E402
 from eval.data.ms_marco import load_subset  # noqa: E402
+from eval.data.scifact import load_subset as load_scifact  # noqa: E402
 from eval.judge import judge_answer_multi  # noqa: E402
 from eval.llm import (  # noqa: E402
     BASE_URL,
@@ -44,7 +45,7 @@ from eval.pipelines.nlql_rag import NlqlRag  # noqa: E402
 PIPELINE_NAMES = ["NLQL", "LangChain"]
 WORKERS = int(os.environ.get("NLQL_EVAL_WORKERS", "8"))
 
-ANSWER_PROMPT = """Answer the question using ONLY the context below. Be concise (one or two sentences). If the context does not support an answer, say "insufficient context".
+ANSWER_PROMPT = """Answer the question using ONLY the context below. Each item may carry [metadata] such as status=published, date=YYYY-MM-DD, priority=high, done=true — USE that metadata to answer questions about which items are published/draft/pending/done or fall in a date range. Be concise. If the context genuinely does not support an answer, say "insufficient context".
 
 Question: {q}
 
@@ -54,8 +55,15 @@ Context:
 Answer:"""
 
 
-def answer(q: str, ctxs: list[tuple[str, str]]) -> str:
-    ctx = "\n".join(f"- {t}" for _, t in ctxs) or "(no context retrieved)"
+def answer(q: str, ctxs: list[tuple[str, str]], docs_by_id: dict) -> str:
+    # Include metadata in the context so the LLM can answer filter-style questions
+    # ("published", "pending", "done", date ranges) that the text alone can't resolve.
+    lines: list[str] = []
+    for did, t in ctxs:
+        meta = docs_by_id.get(did, (None, None, {}))[2] if did in docs_by_id else {}
+        meta_str = ", ".join(f"{k}={v}" for k, v in meta.items() if k != "source")
+        lines.append(f"- [{meta_str}] {t}" if meta_str else f"- {t}")
+    ctx = "\n".join(lines) or "(no context retrieved)"
     return chat(ANSWER_PROMPT.format(q=q, ctx=ctx))
 
 
@@ -120,10 +128,10 @@ def precision(retrieved_ids: list[str], question: dict, docs_by_id: dict) -> flo
 # --- evaluation 1: MS MARCO ----------------------------------------------------
 
 
-def run_msmarco() -> tuple[dict, int, int, list[dict]]:
-    print("loading MS MARCO...")
-    corpus, queries = load_subset()
-    print(f"  {len(corpus)} passages, {len(queries)} judged queries")
+def run_public_benchmark(name: str, load_fn) -> tuple[dict, int, int, list[dict]]:
+    print(f"[{time.strftime('%H:%M:%S')}] loading {name}...")
+    corpus, queries = load_fn()
+    print(f"  {name}: {len(corpus)} passages, {len(queries)} judged queries")
 
     # NLQL uses chunk granularity so each MS MARCO passage is one retrieval unit
     # (CHUNK splitter merges up to 1000 chars → whole passage). This aligns with
@@ -180,7 +188,7 @@ def run_scenarios() -> list[dict]:
         row = {"scenario": q["scenario"], "q": q["q"], "expected": q["expected"]}
         for p in pipelines:
             retrieved = p.retrieve(q)
-            ans = answer(q["q"], retrieved)
+            ans = answer(q["q"], retrieved, docs_by_id)
             score, breakdown = judge_answer_multi(
                 q["q"], q["points"], ans, JUDGE_MODELS
             )
@@ -209,32 +217,43 @@ def run_scenarios() -> list[dict]:
 # --- report --------------------------------------------------------------------
 
 
-def write_report(msmarco: tuple[dict, int, int, list[dict]], scen_rows: list[dict]) -> None:
-    agg, n_corpus, n_q, _ = msmarco
+def write_report(benchmarks: list, scen_rows: list[dict]) -> None:
     out: list[str] = []
-    out.append("# NLQL vs LangChain — retrieval eval v2\n")
+    out.append("# NLQL vs LangChain — retrieval benchmark\n")
     out.append(
         f"Embedding `{EMBED_MODEL}` · answer `{CHAT_MODEL}` · "
         f"judge panel `{', '.join(JUDGE_MODELS)}` (averaged) · via `{BASE_URL}`.\n"
     )
+
+    out.append("\n## Fairness & scope\n")
     out.append(
-        "Both pipelines share the same embedding and answer LLM — only the retriever differs. "
-        "Scenario scores are the **panel average** to cancel single-judge noise.\n"
+        "- **Same embedding** (`text-embedding-3-small`) and **same answer LLM** for both pipelines — "
+        "only the retriever differs.\n"
+        "- Answer scores are the **panel average** across multiple judges to cancel single-model noise.\n"
+        "- **Section 1 — public IR benchmarks** (MS MARCO, BEIR/scifact): standard recall@10 / MRR on "
+        "real queries with judged relevance. Passages carry no metadata, so neither pipeline can use "
+        "filters — this is the NLQL-agnostic dimension where NLQL is *not* inherently favored.\n"
+        "- **Section 2 — constructed capability scenarios**: questions we authored to exercise "
+        "NLQL-specific capabilities (filters, OR/AND/CONTAINS, negation, multi-condition). This is a "
+        "**self-authored capability probe, not a neutral benchmark**; it shows where the two retrievers "
+        "differ — and where LangChain's standard retriever degrades (no native range / CONTAINS / !=).\n"
+        "- **Limitations**: small per-scenario sample (3 each), one embedding model, judge panel is "
+        "itself LLM-based and can be wrong per-question — see the per-judge breakdown in section 4.\n"
     )
 
-    out.append("\n## 1. MS MARCO — real Bing queries, pure semantic recall\n")
-    out.append(
-        f"Corpus: {n_corpus} deduped passages · {n_q} queries with judged relevant passages. "
-        "Passages carry no metadata, so neither pipeline can use filters — this is the dimension "
-        "where **NLQL is not inherently favored** (keeps the benchmark honest).\n"
-    )
-    out.append("| pipeline | recall@10 | MRR |")
-    out.append("|---|---|---|")
-    for name in PIPELINE_NAMES:
-        a = agg[name]
-        out.append(f"| {name} | {a['recall@10']:.1%} | {a['mrr']:.3f} |")
+    out.append("\n## 1. Public IR benchmarks — pure semantic recall (fair, no filters)\n")
+    out.append("| dataset | pipeline | recall@10 | MRR |")
+    out.append("|---|---|---|---|")
+    for bname, agg, n_c, n_q, _ in benchmarks:
+        for p in PIPELINE_NAMES:
+            a = agg[p]
+            out.append(f"| {bname} · {n_c} docs / {n_q} q | {p} | {a['recall@10']:.1%} | {a['mrr']:.3f} |")
 
-    out.append("\n## 2. Constructed scenarios — filter-aware, end-to-end\n")
+    out.append("\n## 2. Constructed capability scenarios (self-authored probe)\n")
+    out.append(
+        "> Authored by us to target NLQL's strengths. Read as 'where the retrievers differ', "
+        "not 'who is objectively better at IR'.\n"
+    )
     out.append("| scenario | NLQL score | NLQL hit | NLQL prec | LC score | LC hit | LC prec |")
     out.append("|---|---|---|---|---|---|---|")
 
@@ -261,7 +280,7 @@ def write_report(msmarco: tuple[dict, int, int, list[dict]], scen_rows: list[dic
         )
     )
 
-    out.append("\n## 3. Per-question (panel-averaged score)\n")
+    out.append("\n## 3. Per-question (panel-averaged)\n")
     out.append("| # | scenario | question | NLQL (score/hit/prec) | LangChain (score/hit/prec) |")
     out.append("|---|---|---|---|---|")
     for i, r in enumerate(scen_rows, 1):
@@ -273,7 +292,7 @@ def write_report(msmarco: tuple[dict, int, int, list[dict]], scen_rows: list[dic
             f"{lc['score']:.1f} / {lc['hit']:.0%} / {lc['precision']:.0%} |"
         )
 
-    out.append("\n## 4. Per-question judge breakdown & retrieved ids\n")
+    out.append("\n## 4. Per-question detail (retrieved ids, answer, judge breakdown)\n")
     for i, r in enumerate(scen_rows, 1):
         out.append(f"### Q{i} ({r['scenario']}) — {r['q']}\n")
         out.append(f"- expected: `{r['expected']}`")
@@ -293,16 +312,20 @@ def write_report(msmarco: tuple[dict, int, int, list[dict]], scen_rows: list[dic
 
 def main() -> None:
     print(f"embed={EMBED_MODEL} chat={CHAT_MODEL} judges={JUDGE_MODELS} workers={WORKERS}")
-    print("\n=== 1) MS MARCO (real data, pure semantic recall) ===")
-    msmarco = run_msmarco()
-    for name in PIPELINE_NAMES:
-        a = msmarco[0][name]
-        print(f"  {name:10} recall@10={a['recall@10']:.1%}  MRR={a['mrr']:.3f}")
+    print("\n=== 1) public IR benchmarks (real data, pure semantic recall) ===")
+    benchmarks = [
+        ("MS MARCO",) + run_public_benchmark("MS MARCO", load_subset),
+        ("BEIR/scifact",) + run_public_benchmark("BEIR/scifact", load_scifact),
+    ]
+    for bname, agg, n_c, n_q, _ in benchmarks:
+        for p in PIPELINE_NAMES:
+            a = agg[p]
+            print(f"  {bname:14} {p:10} recall@10={a['recall@10']:.1%}  MRR={a['mrr']:.3f}")
 
-    print("\n=== 2) constructed scenarios (filter-aware, panel-judged) ===")
+    print("\n=== 2) constructed capability scenarios (self-authored) ===")
     scen_rows = run_scenarios()
 
-    write_report(msmarco, scen_rows)
+    write_report(benchmarks, scen_rows)
     print("\nreport -> eval/report.md")
 
 

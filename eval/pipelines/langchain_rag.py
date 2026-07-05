@@ -119,3 +119,32 @@ class LangChainRag:
         assert self.store is not None, "ingest() not called"
         docs = self.store.similarity_search(query, k=k)
         return [d.metadata.get("doc_id", "") for d in docs]
+
+    def llm_retrieve(self, question_text: str, k: int = 3) -> list[tuple[str, str]]:
+        """LLM-driven retrieval: the model emits {query, filter}; the LangChain
+        retriever executes it. Fair counterpart to NlqlRag.llm_retrieve."""
+        import json
+
+        from ..llm import chat
+
+        prompt = (
+            "Produce a JSON object for retrieval. Reply with ONLY the JSON, no prose.\n"
+            'Format: {"query": "<semantic query string>", '
+            '"filter": {"<field>": "<value>"} or null}\n'
+            "Metadata fields (EQUALITY ONLY — no ranges, no !=, no substring): "
+            "status, date (a YYYY-MM-DD string, exact match only), category, priority, done.\n"
+            "If the question implies a range, negation, or substring, leave filter null "
+            "and put the best semantic query in 'query' (the retriever cannot express those).\n"
+            f"Question: {question_text}"
+        )
+        raw = chat(prompt).strip().strip("`")
+        try:
+            spec = json.loads(raw)
+        except Exception:
+            spec = {"query": question_text}
+        flt = spec.get("filter") or None
+        if flt and len(flt) > 1:
+            flt = {"$and": [{kk: vv} for kk, vv in flt.items()]}
+        assert self.store is not None
+        docs = self.store.similarity_search(spec.get("query", question_text), k=k, filter=flt)
+        return [(d.metadata.get("doc_id", ""), d.page_content) for d in docs]

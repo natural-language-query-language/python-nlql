@@ -11,7 +11,7 @@ from __future__ import annotations
 import hashlib
 from collections import OrderedDict
 
-N_QUERIES = 40
+N_QUERIES = 100
 
 
 def _doc_id(text: str) -> str:

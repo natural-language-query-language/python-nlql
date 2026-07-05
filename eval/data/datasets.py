@@ -224,6 +224,22 @@ QUESTIONS: list[dict] = [
      "filter": {"priority": "high", "done": "true"},
      "expected": ["todo-rag-doc", "todo-eval-harness"],
      "points": "high-priority AND done todos: RAG docs, eval harness (NOT the pending high-priority migration or the done medium ones)"},
+
+    # 9. boolean — NLQL expression algebra: OR/AND of CONTAINS, mixed with filters.
+    #    LangChain's equality filter cannot express any of these (no CONTAINS, no OR/AND),
+    #    so this measures NLQL's expression power directly, not just metadata pushdown.
+    {"scenario": "boolean", "q": "Published docs that mention 'transformer' or 'attention'.",
+     "nlql": 'SELECT SENTENCE WHERE meta.status == "published" AND (content CONTAINS "transformer" OR content CONTAINS "attention") LIMIT 5',
+     "filter": {"status": "published"}, "expected": ["tx-arch", "tx-attention", "tx-bert", "llm-gpt"],
+     "points": "published docs whose text contains 'transformer' or 'attention'"},
+    {"scenario": "boolean", "q": "Docs that mention both 'retrieval' and 'chunks'.",
+     "nlql": 'SELECT SENTENCE WHERE content CONTAINS "retrieval" AND content CONTAINS "chunks" LIMIT 5',
+     "filter": None, "expected": ["rag-retrieve"],
+     "points": "docs containing both 'retrieval' and 'chunks' (RAG retrieval selecting chunks)"},
+    {"scenario": "boolean", "q": "Published docs mentioning 'agents' or 'tools'.",
+     "nlql": 'SELECT SENTENCE WHERE meta.status == "published" AND (content CONTAINS "agents" OR content CONTAINS "tools") LIMIT 5',
+     "filter": {"status": "published"}, "expected": ["agt-planning", "agt-memory", "agt-multi"],
+     "points": "published docs whose text mentions 'agents' or 'tools'"},
 ]
 
-SCENARIOS = ["semantic", "hybrid", "date", "keyword", "composite", "vague", "negation", "distractor"]
+SCENARIOS = ["semantic", "hybrid", "date", "keyword", "composite", "vague", "negation", "distractor", "boolean"]
