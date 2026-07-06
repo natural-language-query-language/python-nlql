@@ -51,7 +51,7 @@ from nlql.sdk import (
 )
 from nlql.types import Signature, TypeTag, TypeHandler, register_type, get_type_handler
 
-__version__ = "0.2.0"
+__version__ = "0.3.3"
 
 __all__ = [
     # engine & builder

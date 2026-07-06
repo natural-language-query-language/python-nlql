@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "python-nlql"
-version = "0.3.2"
+version = "0.3.3"
 description = "SQL-style semantic query language and retrieval middleware for Agents & RAG"
 readme = "README.md"
 requires-python = ">=3.11"

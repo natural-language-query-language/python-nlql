@@ -18,7 +18,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
     """Return the JSON Schema (draft 2020-12) describing a Query IR document."""
     call_name: dict[str, Any] = {
         "type": "string",
-        "description": "Registered function/operator name, e.g. SIMILARITY, CONTAINS, LENGTH.",
+        "description": "Function name. SIMILARITY(content, \"query\") = semantic relevance; CONTAINS(content, \"keyword\") = literal substring; LENGTH(content) = text length.",
     }
     if function_names is not None:
         call_name = {"type": "string", "enum": sorted(set(function_names))}
@@ -27,7 +27,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
     return {
         "$schema": _SCHEMA_URI,
         "title": "NLQLQuery",
-        "description": "A semantic retrieval query over an NLQL store.",
+        "description": "A semantic retrieval query. Use 'let' with SIMILARITY(content, \"query\") for relevance scoring, 'where' for filtering (metadata equality, CONTAINS for keyword matching, AND/OR for combining), 'order_by' for ranking, 'limit' to cap results.",
         "type": "object",
         "additionalProperties": False,
         "properties": {
@@ -39,7 +39,11 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
             },
             "where": expr_ref,
             "order_by": {"type": "array", "items": {"$ref": "#/$defs/orderKey"}},
-            "limit": {"type": ["integer", "null"], "minimum": 0},
+            "limit": {
+                "type": ["integer", "null"],
+                "minimum": 0,
+                "description": "Max results. Pick by question breadth: 1-2 for specific facts, 5-10 for broad summaries. null/omit = return all matches ranked by relevance.",
+            },
         },
         "required": ["select"],
         "$defs": {
@@ -47,7 +51,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
-                    "unit": {"enum": ["document", "chunk", "sentence"]},
+                    "unit": {"enum": ["document", "chunk", "sentence"], "description": "document = whole doc (meta/first page), chunk = passage (default), sentence = specific sentence"},
                     "window": {
                         "type": ["integer", "null"],
                         "minimum": 0,
@@ -57,6 +61,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "required": ["unit"],
             },
             "binding": {
+                "description": "Named binding: give SIMILARITY a name (e.g. 'rel') to reference in WHERE and ORDER BY.",
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {"name": {"type": "string"}, "expr": expr_ref},
@@ -121,6 +126,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "required": ["node", "name"],
             },
             "compare": {
+                "description": "Compare two values: meta.status == \"published\", meta.date >= \"2024-01-01\", ref(\"rel\") >= 0.5.",
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
@@ -132,6 +138,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "required": ["node", "op", "left", "right"],
             },
             "and": {
+                "description": "All operands must match. Combine: relevance threshold + metadata filter + keyword.",
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
@@ -141,6 +148,7 @@ def query_json_schema(function_names: Iterable[str] | None = None) -> dict[str, 
                 "required": ["node", "operands"],
             },
             "or": {
+                "description": "Any operand can match. Use for alternatives: CONTAINS(content,\"x\") OR CONTAINS(content,\"y\").",
                 "type": "object",
                 "additionalProperties": False,
                 "properties": {
